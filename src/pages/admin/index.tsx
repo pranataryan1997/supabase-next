@@ -16,6 +16,10 @@ import { toast } from "sonner";
 const AdminPage = () => {
 	const [menus, setMenus] = useState<IMenu[]>([]);
 	const [createDialog, setCreateDialog] = useState(false);
+	const [selectedMenu, setSelectedMenu] = useState<{
+		menu: IMenu;
+		action: "edit" | "delete";
+	} | null>(null);
 
 	useEffect(() => {
 		const fetchMenus = async () => {
@@ -46,6 +50,24 @@ const AdminPage = () => {
 
 				toast("Menu added successfully");
 				setCreateDialog(false); // tutup dialog
+			}
+		} catch (error) {
+			console.log("error", error);
+		}
+	};
+
+	const handleDeleteMenu = async () => {
+		try {
+			const { data, error } = await supabase.from("menus").delete().eq("id", selectedMenu?.menu.id).select();
+			// delete data ke table menus berdasarkan id
+
+			if (error) {
+				console.log("error", error);
+			} else {
+				setMenus(prev => prev.filter(menu => menu.id !== selectedMenu?.menu.id)); // update state menus dengan menghapus data yang di delete
+
+				toast("Menu Deleted successfully");
+				setSelectedMenu(null); // tutup dialog
 			}
 		} catch (error) {
 			console.log("error", error);
@@ -154,7 +176,17 @@ const AdminPage = () => {
 											<DropdownMenuSeparator />
 											<DropdownMenuGroup>
 												<DropdownMenuItem>Update</DropdownMenuItem>
-												<DropdownMenuItem className="text-red-400">Delete</DropdownMenuItem>
+												<DropdownMenuItem
+													className="text-red-400"
+													onClick={() =>
+														setSelectedMenu({
+															menu,
+															action: "delete",
+														})
+													}
+												>
+													Delete
+												</DropdownMenuItem>
 											</DropdownMenuGroup>
 										</DropdownMenuContent>
 									</DropdownMenu>
@@ -164,6 +196,33 @@ const AdminPage = () => {
 					</TableBody>
 				</Table>
 			</div>
+
+			<Dialog
+				open={selectedMenu !== null && selectedMenu.action === "delete"}
+				onOpenChange={open => {
+					if (!open) {
+						setSelectedMenu(null);
+					}
+				}}
+			>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle>Delete Menu</DialogTitle>
+						<DialogDescription>Are you sure want to delete {selectedMenu?.menu.name} ?</DialogDescription>
+					</DialogHeader>
+
+					<DialogFooter>
+						<DialogClose>
+							<Button variant="secondary" className="cursor-pointer">
+								Cancel
+							</Button>
+						</DialogClose>
+						<Button variant="destructive" onClick={handleDeleteMenu} className="cursor-pointer">
+							Delete
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 };
