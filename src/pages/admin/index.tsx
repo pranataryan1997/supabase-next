@@ -35,6 +35,12 @@ const AdminPage = () => {
 		fetchMenus();
 	}, [supabase]);
 
+	const categoryLabel: { [key: string]: string } = {
+		coffe: "Coffe",
+		"non coffe": "Non Coffe",
+		pastries: "Pastries",
+	};
+
 	const handleAddMenu = async (e: FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget); // ambil data dari form yang di submit
@@ -74,6 +80,31 @@ const AdminPage = () => {
 		}
 	};
 
+	const handleEditMenu = async (e: FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		const formData = new FormData(e.currentTarget); // ambil data dari form yang di submit
+		const newData = Object.fromEntries(formData); // data baru dari form yang sudah diubah
+
+		try {
+			const { error } = await supabase.from("menus").update(newData).eq("id", selectedMenu?.menu.id).select(); // update data ke table menus berdasarkan id
+
+			if (error) {
+				console.log("error", error);
+			} else {
+				setMenus(prev =>
+					prev.map(
+						menu => (menu.id == selectedMenu?.menu.id ? { ...menu, ...newData } : menu),
+						// cari menu yang di select berdasarkan id, jika ada, update data nya dengan data dari form, jika tidak biarkan tetap sama.
+					),
+				);
+
+				toast("Menu Edit successfully");
+				setSelectedMenu(null);
+			}
+		} catch (error) {
+			console.log("error", error);
+		}
+	};
 	return (
 		<div className="container mx-auto py-8">
 			<div className="mb-4 w-full flex justify-between">
@@ -130,8 +161,8 @@ const AdminPage = () => {
 							</div>
 
 							<DialogFooter>
-								<DialogClose>
-									<Button variant="secondary" className="cursor-pointer">
+								<DialogClose asChild>
+									<Button type="button" variant="secondary" className="cursor-pointer">
 										Cancel
 									</Button>
 								</DialogClose>
@@ -163,8 +194,8 @@ const AdminPage = () => {
 									<Image src={menu.image} alt={menu.name} width={50} height={50} className="aspect-square object-cover rounded-lg" />
 									{menu.name}
 								</TableCell>
-								<TableCell>{menu.description.split(" ").slice(0, 5).join(" ") + "..."}</TableCell>
-								<TableCell>{menu.category}</TableCell>
+								<TableCell>{menu.description.length > 20 ? menu.description.slice(0, 20) + "..." : menu.description}</TableCell>
+								<TableCell>{categoryLabel[menu.category] || menu.category}</TableCell>
 								<TableCell>${menu.price}.00</TableCell>
 								<TableCell>
 									<DropdownMenu>
@@ -175,7 +206,16 @@ const AdminPage = () => {
 											<DropdownMenuLabel className="font-bold">Action</DropdownMenuLabel>
 											<DropdownMenuSeparator />
 											<DropdownMenuGroup>
-												<DropdownMenuItem>Update</DropdownMenuItem>
+												<DropdownMenuItem
+													onClick={() =>
+														setSelectedMenu({
+															menu,
+															action: "edit",
+														})
+													}
+												>
+													Update
+												</DropdownMenuItem>
 												<DropdownMenuItem
 													className="text-red-400"
 													onClick={() =>
@@ -197,6 +237,7 @@ const AdminPage = () => {
 				</Table>
 			</div>
 
+			{/* Dialog Delete */}
 			<Dialog
 				open={selectedMenu !== null && selectedMenu.action === "delete"}
 				onOpenChange={open => {
@@ -212,8 +253,8 @@ const AdminPage = () => {
 					</DialogHeader>
 
 					<DialogFooter>
-						<DialogClose>
-							<Button variant="secondary" className="cursor-pointer">
+						<DialogClose asChild>
+							<Button type="button" variant="secondary" className="cursor-pointer">
 								Cancel
 							</Button>
 						</DialogClose>
@@ -221,6 +262,76 @@ const AdminPage = () => {
 							Delete
 						</Button>
 					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Dialog Update */}
+			<Dialog
+				open={selectedMenu !== null && selectedMenu.action === "edit"}
+				onOpenChange={open => {
+					if (!open) {
+						setSelectedMenu(null);
+					}
+				}}
+			>
+				<DialogContent className="sm:max-w-md">
+					<form onSubmit={handleEditMenu} className="space-y-4">
+						<DialogHeader>
+							<DialogTitle>Edit Menu</DialogTitle>
+							<DialogDescription>Make changes to your menu.</DialogDescription>
+						</DialogHeader>
+
+						{/* Form Input */}
+						<div className="grid w-full gap-4">
+							<div className="grid w-full gap-1.5">
+								<Label htmlFor="name">Name</Label>
+								<Input id="name" name="name" placeholder="Insert Name" required defaultValue={selectedMenu?.menu.name} />
+							</div>
+
+							<div className="grid w-full gap-1.5">
+								<Label htmlFor="price">Price</Label>
+								<Input id="price" name="price" placeholder="Insert Price" required defaultValue={selectedMenu?.menu.price} />
+							</div>
+
+							<div className="grid w-full gap-1.5">
+								<Label htmlFor="image">Image</Label>
+								<Input id="image" name="image" placeholder="Insert Image" required defaultValue={selectedMenu?.menu?.image} />
+							</div>
+
+							<div className="grid w-full gap-1.5">
+								<Label htmlFor="category">Category</Label>
+								<Select key={selectedMenu?.menu?.id} required name="category" defaultValue={selectedMenu?.menu?.category}>
+									<SelectTrigger className="w-full">
+										<SelectValue placeholder="Select Category" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectGroup>
+											<SelectLabel>Category</SelectLabel>
+											<SelectItem value="coffe">Coffe</SelectItem>
+											<SelectItem value="non coffe">Non Coffe</SelectItem>
+											<SelectItem value="pastries">Pastries</SelectItem>
+										</SelectGroup>
+									</SelectContent>
+								</Select>
+							</div>
+
+							<div className="grid w-full gap-1.5">
+								<Label htmlFor="description">Description</Label>
+								<Textarea id="description" name="description" placeholder="Insert description" required className="resize-none h-32" defaultValue={selectedMenu?.menu?.description} />
+							</div>
+						</div>
+
+						<DialogFooter>
+							<DialogClose asChild>
+								<Button type="button" variant="secondary" className="cursor-pointer">
+									Cancel
+								</Button>
+							</DialogClose>
+							<Button type="submit" className="cursor-pointer">
+								Update
+							</Button>
+						</DialogFooter>
+					</form>
 				</DialogContent>
 			</Dialog>
 		</div>
